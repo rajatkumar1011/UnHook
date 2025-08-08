@@ -46,6 +46,7 @@ const AnimatedBackground = () => {
         }
 
         const animate = () => {
+            if (bubblesRef.current.length === 0) return;
             bubblesRef.current.forEach(b => {
                 // Update position
                 b.y += b.vy;
@@ -243,7 +244,21 @@ const PlayerScreen = ({ initialVideoId, onNewUrl, toggleTheme, theme }) => {
         player.setVolume(newVolume * 100);
         if (newVolume > 0 && isMuted) setIsMuted(false);
     };
-    const handleFullscreen = () => { if (!document.fullscreenElement) playerContainerRef.current?.requestFullscreen(); else document.exitFullscreen(); };
+    
+    const handleFullscreen = () => {
+        try {
+            if (!document.fullscreenElement) {
+                playerContainerRef.current?.requestFullscreen().catch(err => {
+                    console.warn(`Fullscreen request failed: ${err.message}`);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        } catch (err) {
+            console.warn(`Could not enter fullscreen mode: ${err.message}`);
+        }
+    };
+    
     const handleUrlSubmit = (e) => { e.preventDefault(); onNewUrl(inputValue); };
 
     const generateWithGemini = async (prompt) => {
@@ -292,9 +307,11 @@ const PlayerScreen = ({ initialVideoId, onNewUrl, toggleTheme, theme }) => {
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                         <input type="text" value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder="Paste another link..." className="w-full pl-10 pr-4 py-2 rounded-md text-sm bg-gray-100 dark:bg-[#1a1a1c] border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"/>
                     </form>
-                    <button onClick={toggleTheme} className="ml-4 text-gray-400 hover:text-black dark:hover:text-white"><Sun size={20} /></button>
+                    <button onClick={toggleTheme} className="ml-4 text-gray-400 hover:text-black dark:hover:text-white">
+                        {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+                    </button>
                 </header>
-                <div ref={playerContainerRef} className="w-full aspect-video rounded-lg shadow-2xl dark:shadow-purple-500/20 overflow-hidden relative bg-black flex-shrink-0" onMouseMove={handleMouseMove} onMouseLeave={() => isPlaying && setShowControls(false)}>
+                <div ref={playerContainerRef} className="w-full aspect-video rounded-lg shadow-2xl dark:shadow-[0_0_35px_rgba(168,85,247,0.3)] transition-shadow duration-500 overflow-hidden relative bg-black flex-shrink-0" onMouseMove={handleMouseMove} onMouseLeave={() => isPlaying && setShowControls(false)}>
                     <div id="youtube-player-iframe" className="w-full h-full" />
                     <AnimatePresence>
                         {showControls && (
@@ -343,7 +360,9 @@ const PlayerScreen = ({ initialVideoId, onNewUrl, toggleTheme, theme }) => {
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                         <input type="text" value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder="Paste another link..." className="w-full pl-10 pr-4 py-2 rounded-md text-sm bg-gray-100 dark:bg-[#1a1a1c] border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"/>
                     </form>
-                    <button onClick={toggleTheme} className="ml-4 text-gray-400 hover:text-black dark:hover:text-white"><Sun size={20} /></button>
+                    <button onClick={toggleTheme} className="ml-4 text-gray-400 hover:text-black dark:hover:text-white">
+                        {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+                    </button>
                 </header>
             </div>
         </div>
