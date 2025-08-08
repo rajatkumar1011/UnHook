@@ -202,6 +202,7 @@ const PlayerScreen = ({ initialVideoId, onNewUrl, toggleTheme, theme }) => {
     const controlTimeoutRef = useRef(null);
     const [isGeminiLoading, setIsGeminiLoading] = useState(false);
     const [geminiResult, setGeminiResult] = useState({ title: '', content: '' });
+    const [originalSummary, setOriginalSummary] = useState('');
 
     useEffect(() => {
         if (!window.YT) {
@@ -217,7 +218,10 @@ const PlayerScreen = ({ initialVideoId, onNewUrl, toggleTheme, theme }) => {
         return () => { player?.destroy(); document.removeEventListener('fullscreenchange', onFullscreenChange); };
     }, [initialVideoId]);
     
-    useEffect(() => { setGeminiResult({ title: '', content: '' }); }, [initialVideoId]);
+    useEffect(() => { 
+        setGeminiResult({ title: '', content: '' }); 
+        setOriginalSummary('');
+    }, [initialVideoId]);
 
     const createPlayer = (videoId) => {
         if (player) player.destroy();
@@ -263,6 +267,7 @@ const PlayerScreen = ({ initialVideoId, onNewUrl, toggleTheme, theme }) => {
 
     const generateWithGemini = async (prompt) => {
         setIsGeminiLoading(true);
+        setOriginalSummary('');
         setGeminiResult({ title: '', content: '' });
         const apiKey = "";
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
@@ -284,6 +289,7 @@ const PlayerScreen = ({ initialVideoId, onNewUrl, toggleTheme, theme }) => {
     const handleSummarize = async () => {
         const prompt = `Provide a concise, one-paragraph summary of the YouTube video titled "${videoData.title}" by the creator "${videoData.author}".`;
         const summary = await generateWithGemini(prompt);
+        setOriginalSummary(summary);
         setGeminiResult({ title: '✨ AI Summary', content: summary });
     };
 
@@ -293,7 +299,19 @@ const PlayerScreen = ({ initialVideoId, onNewUrl, toggleTheme, theme }) => {
         setGeminiResult({ title: '✨ Key Moments', content: moments });
     };
 
-    // Function to format the Gemini content, replacing ** with <strong> tags
+    const handleRelatedTopics = async () => {
+        const prompt = `Based on the YouTube video titled "${videoData.title}", generate a list of 5 related topics or concepts a viewer might be interested in exploring next. Use Markdown for bolding.`;
+        const topics = await generateWithGemini(prompt);
+        setGeminiResult({ title: '✨ Related Topics', content: topics });
+    };
+
+    const handleExplainSimply = async () => {
+        if (!originalSummary) return;
+        const prompt = `Rewrite the following text in a very simple way, suitable for a beginner: "${originalSummary}"`;
+        const simplifiedSummary = await generateWithGemini(prompt);
+        setGeminiResult({ title: '✨ Simplified Summary', content: simplifiedSummary });
+    };
+
     const formatGeminiContent = (content) => {
         const boldedContent = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
         return { __html: boldedContent };
@@ -333,12 +351,15 @@ const PlayerScreen = ({ initialVideoId, onNewUrl, toggleTheme, theme }) => {
                     </AnimatePresence>
                 </div>
                 <div className="mt-4 p-4 rounded-lg bg-gray-50 dark:bg-[#1a1a1c] flex-grow overflow-y-auto">
-                    <div className="flex items-center gap-3 mb-4">
+                    <div className="flex items-center gap-3 mb-4 flex-wrap">
                         <button onClick={handleSummarize} disabled={isGeminiLoading} className="flex items-center gap-2 text-sm px-3 py-2 rounded-md bg-blue-500 text-white font-medium hover:bg-blue-600 disabled:bg-gray-400">
                             <Sparkles size={16}/> Summarize
                         </button>
                         <button onClick={handleKeyMoments} disabled={isGeminiLoading} className="flex items-center gap-2 text-sm px-3 py-2 rounded-md bg-gray-200 dark:bg-gray-700 font-medium hover:bg-gray-300 dark:hover:bg-gray-600 disabled:bg-gray-400">
                             <Sparkles size={16}/> Key Moments
+                        </button>
+                        <button onClick={handleRelatedTopics} disabled={isGeminiLoading} className="flex items-center gap-2 text-sm px-3 py-2 rounded-md bg-gray-200 dark:bg-gray-700 font-medium hover:bg-gray-300 dark:hover:bg-gray-600 disabled:bg-gray-400">
+                            <Sparkles size={16}/> Related Topics
                         </button>
                     </div>
                     <div className="min-h-[100px]">
@@ -346,7 +367,14 @@ const PlayerScreen = ({ initialVideoId, onNewUrl, toggleTheme, theme }) => {
                         <AnimatePresence>
                         {geminiResult.content && !isGeminiLoading && (
                             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                                <h3 className="font-bold text-lg mb-2">{geminiResult.title}</h3>
+                                <div className="flex items-center justify-between mb-2">
+                                    <h3 className="font-bold text-lg">{geminiResult.title}</h3>
+                                    {geminiResult.title === '✨ AI Summary' && (
+                                        <button onClick={handleExplainSimply} disabled={isGeminiLoading} className="text-xs px-2 py-1 rounded-md bg-purple-500 text-white font-medium hover:bg-purple-600 disabled:bg-gray-400">
+                                            Explain Simply
+                                        </button>
+                                    )}
+                                </div>
                                 <p className="text-gray-800 dark:text-gray-300 whitespace-pre-wrap leading-relaxed font-normal" dangerouslySetInnerHTML={formatGeminiContent(geminiResult.content)}></p>
                             </motion.div>
                         )}
